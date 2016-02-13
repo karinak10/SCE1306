@@ -12,78 +12,91 @@ using System.IO;
 namespace assignment_DAQ_sim_app
 {
 
-
 public partial class Form1 : Form
     {
         //Declare attribute
-        private Sensor[] mySensors;
+        private Sensor[] analogSensors;
         private Sensor[] digitalSensors;
-        private double timeLeft;
+        private double timeLeftSampling;
         private double timeLeftLogging;
         private string logData;
-        private string fileName = "karina.txt";
+        private string fileName = "DAQ_sampling.txt";
         private int writeCount = 0;
         public Form1()
         {
             InitializeComponent();
 
-            label3.Text = "Filename: " + fileName;
-            label5.Text = "Times write: " + writeCount.ToString();
+            label1.Text = "Current time: " + DateTime.Now.ToString();
+            label3.Text = "Filename: " + fileName;                  //Prints out the fileName to the label on top of application
+            label5.Text = "Times write: " + writeCount.ToString();  //Count how many times the Sampling button is pushed during a session
 
-            mySensors = new Sensor[7];
+            analogSensors = new Sensor[7];                          //Initialize new variable array, with 7 elements
 
-            for (int i = 0; i < mySensors.Length; i++)
+            for (int i = 0; i < analogSensors.Length; i++)
             {
-                mySensors[i] = new Sensor(i);
+                analogSensors[i] = new Sensor(i);
             }
 
-            digitalSensors = new Sensor[3];
+            digitalSensors = new Sensor[3];                         //Initialize new variable array, with 3 elements
             for (int j = 0; j < digitalSensors.Length; j++)
             {
                 digitalSensors[j] = new Sensor(j);
             }
 
-
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e)      //When klikking the sampling button
         {
+            //int test value, test==0: GetValue return random analog values, test==1: GetValue return random digital values 
             int d = 0;
             int a = 1;
             logData = null;
 
             //Analog values
-            for (int i = 0; i < mySensors.Length; i++)
+            for (int i = 0; i < analogSensors.Length; i++)
             {
-                double fValue = mySensors[i].GetValue(a);
-                string value =  mySensors[i].GetSensId().ToString() + "\t" + fValue.ToString("F3") +"\t"+  DateTime.Now.ToString();
-                listBox1.Items.Add(value);
-                logData += value + "\r\n";
+                double fAnValue = analogSensors[i].GetValue(a);
+
+                //Resolution
+                double t = fAnValue - Math.Floor(fAnValue);                 //Checking the decimal precision in the random analog value
+                if (t >= 0.3F && t <= 0.7F)
+                {
+                    fAnValue = Math.Floor(fAnValue) + 0.5F;                 //Round to nearest half
+                }
+                else if (t > 0.7F)
+                    fAnValue = Math.Ceiling(fAnValue);                      //Round to neares full
+                else
+                fAnValue = Math.Floor(fAnValue);
+
+
+                string sAnString =  "A_iD_" + analogSensors[i].GetSensId().ToString() + "\t" + fAnValue.ToString("F2") + "\t" +  DateTime.Now.ToString();
+                listBox1.Items.Add(sAnString);
+                logData += sAnString + "\r\n";
             }
 
             //Digital values
             for (int j = 0; j < digitalSensors.Length; j++)
             {
-                double diValue = digitalSensors[j].GetValue(d);
-                string digistring =  digitalSensors[j].GetSensId().ToString() + "\t" + diValue.ToString("F0");
-                listBox2.Items.Add(digistring);
+                double fDiValue = digitalSensors[j].GetValue(d);
+                string sDiString =  "D_iD_" + digitalSensors[j].GetSensId().ToString() + "\t" + fDiValue.ToString("F0") + "\t" + DateTime.Now.ToString();
+                listBox1.Items.Add(sDiString);
+                logData += sDiString + "\r\n";
             }
 
-            timeLeft = 10;
+            timeLeftSampling = 59;
             tmrSample.Start();
             button1.Enabled = false;
 
 
         }
-
-        private void tmrSample_Tick(object sender, EventArgs e)
+        //Sampling countdown
+        private void tmrSample_Tick(object sender, EventArgs e)         
         {
-            if (timeLeft > 0)
+            if (timeLeftSampling > 0)
             {
-                // Display the new time left
-                // by updating the Time Left label.
-                timeLeft = timeLeft - 1;
-                textBox1.Text = timeLeft/10 + " seconds";
+
+                timeLeftSampling = timeLeftSampling - 1;
+                textBox1.Text = timeLeftSampling/10 + " seconds";
             }
 
             else
@@ -91,48 +104,55 @@ public partial class Form1 : Form
                 button1.Enabled = true;
             }
 
+        }
+
+
+        //Logging button
+        private void button2_Click(object sender, EventArgs e)      
+        {
+            writeToFile();
+            timeLeftLogging = 470;
+            tmrLogging.Start();
+            button2.Enabled = false;
+            writeCount++;
+            label5.Text = "Times write: " + writeCount.ToString();          //Updating how many times the logging button has been pushed/program written to file
 
         }
 
+        //Logging countdown
         private void tmrLogging_Tick(object sender, EventArgs e)
         {
             {
                 if (timeLeftLogging > 0)
                 {
-                    // Display the new time left
-                    // by updating the Time Left label.
-                    timeLeftLogging = timeLeftLogging - 1;
-                    textBox2.Text = timeLeftLogging/10 + " seconds";
+                    timeLeftLogging = timeLeftLogging - 1;                  //While timeleftlogging is over 0, it will reduce one for each iteration
+                    textBox2.Text = timeLeftLogging / 10 + " seconds";      //The textbox is showing the time left and a string "seconds"
                 }
 
                 else
                 {
-                    button2.Enabled = true;
+                    button2.Enabled = true;                         //The button is available to be pushed when 47 seconds has passed
                 }
             }
         }
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-            writeToFile();
-            timeLeftLogging = 10;
-            tmrLogging.Start();
-            button2.Enabled = false;
-            writeCount++;
-            label5.Text = "Times write: " + writeCount.ToString();
-
-        }
-
         private void helpToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("This is help box", "Help");
+            MessageBox.Show("This is a help box", "Help");
         }
+
+        //Writing the measurements to a file
         private void writeToFile()
         {
             using (StreamWriter writer = new StreamWriter(fileName, true))
             {
                 writer.Write(logData);
             }
+        }
+
+        private void clear_Txt_Click(object sender, EventArgs e)            //Push the button if you want to clear the text in the listbox
+        {
+            listBox1.Items.Clear();
         }
 
     }
